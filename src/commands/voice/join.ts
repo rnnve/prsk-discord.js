@@ -81,6 +81,16 @@ export default {
         await entersState(conn, VoiceConnectionStatus.Ready, 15_000);
       } catch (e) {
         console.error("[join] Failed to connect to voice channel:", e);
+        try {
+          conn.destroy();
+        } catch {
+          // ignore
+        }
+        await interaction.followUp({
+          content: "ไม่สามารถเชื่อมต่อห้องเสียงได้ กรุณาลองใหม่อีกครั้ง",
+          flags: MessageFlags.Ephemeral,
+        });
+        return;
       }
     }
 

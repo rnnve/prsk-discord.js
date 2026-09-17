@@ -199,6 +199,11 @@ async function executePlayTts(
     try {
       await entersState(connection, VoiceConnectionStatus.Ready, 15_000);
     } catch (e) {
+      try {
+        connection.destroy();
+      } catch {
+        // ignore
+      }
       return { ok: false, error: "การเชื่อมต่อห้องเสียงไม่พร้อมใช้งาน (not ready)" };
     }
   }

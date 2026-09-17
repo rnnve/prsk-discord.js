@@ -48,6 +48,7 @@ export default {
             channelId: channel.id,
             guildId: guild.id,
             adapterCreator: guild.voiceAdapterCreator as any,
+            selfDeaf: false,
           });
           console.log(`Reconnected successfully (attempt ${attempt + 1})`);
           return;

@@ -47,6 +47,11 @@ async function ensureVoice(interaction: ChatInputCommandInteraction): Promise<bo
       await entersState(connection, VoiceConnectionStatus.Ready, 15_000);
     } catch (e) {
       console.error("[say] Failed to connect to voice channel:", e);
+      try {
+        connection.destroy();
+      } catch {
+        // ignore
+      }
       await interaction.followUp({
         content: "ไม่สามารถเชื่อมต่อห้องเสียงได้ กรุณาลองใหม่อีกครั้ง",
         flags: MessageFlags.Ephemeral,
