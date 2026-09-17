@@ -305,18 +305,16 @@ export async function playTts(
       return await executePlayTts(text, voice, guildId, options);
     });
 
-  guildQueues.set(
-    guildId,
-    current.then(
-      () => {},
-      () => {}
-    )
+  const queuePromise = current.then(
+    () => {},
+    () => {}
   );
+  guildQueues.set(guildId, queuePromise);
 
   try {
     return await current;
   } finally {
-    if (guildQueues.get(guildId) === current) {
+    if (guildQueues.get(guildId) === queuePromise) {
       guildQueues.delete(guildId);
     }
   }
