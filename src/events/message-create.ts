@@ -18,6 +18,8 @@ async function readQueue(text: string, guildId: string): Promise<void> {
     const result = await playTts(text, null, guildId);
     if (!result.ok) {
       console.error(`Auto-read TTS failed for guild ${guildId}:`, result.error);
+    } else if (!result.started) {
+      console.warn(`Auto-read TTS produced no audible playback for guild ${guildId} (${result.audioBytes ?? 0} bytes)`);
     }
   });
   readLocks.set(guildId, newLock);

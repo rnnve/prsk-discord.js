@@ -17,6 +17,10 @@ import { EdgeTTS } from "node-edge-tts";
 export interface TtsResult {
   ok: boolean;
   error?: string;
+  /** True once the audio player actually entered Playing state (audible playback started). */
+  started?: boolean;
+  /** Size in bytes of the synthesized mp3 file. */
+  audioBytes?: number;
 }
 
 export interface PlayTtsOptions {
@@ -214,6 +218,8 @@ async function executePlayTts(
   }
 
   const tempPath = synth.path;
+  const audioBytes = fs.existsSync(tempPath) ? fs.statSync(tempPath).size : 0;
+  console.log(`[tts] synthesized ${audioBytes} bytes for guild ${guildId} (voice=${resolvedVoice})`);
   const player = getOrCreatePlayer(guildId);
 
   // Subscribe connection to the player
@@ -222,6 +228,7 @@ async function executePlayTts(
   return new Promise<TtsResult>((resolve) => {
     let settled = false;
     let timer: NodeJS.Timeout | null = null;
+    const playStart = Date.now();
 
     const cleanup = () => {
       if (timer) {
@@ -235,18 +242,19 @@ async function executePlayTts(
       if (settled) return;
       settled = true;
       cleanup();
-      resolve(result);
+      resolve({ audioBytes, ...result });
     };
 
     timer = setTimeout(() => {
       player.stop(true);
-      finish({ ok: false, error: "เล่นเสียงหมดเวลา (timeout)" });
+      finish({ ok: false, started, error: "เล่นเสียงหมดเวลา (timeout)" });
     }, PLAY_TIMEOUT_MS);
 
     let started = false;
     const onStartPlaying = () => {
       if (started) return;
       started = true;
+      console.log(`[tts] player Playing for guild ${guildId} (+${Date.now() - playStart}ms, ${audioBytes} bytes)`);
       try {
         options?.onStart?.();
       } catch (e) {
@@ -259,17 +267,21 @@ async function executePlayTts(
     });
 
     player.once(AudioPlayerStatus.Idle, () => {
-      finish({ ok: true });
+      console.log(`[tts] player Idle for guild ${guildId} (+${Date.now() - playStart}ms, started=${started})`);
+      if (!started) {
+        console.warn(`[tts] playback ended without ever entering Playing state (guild ${guildId}, ${audioBytes} bytes) — likely empty/failed ffmpeg transcode`);
+      }
+      finish({ ok: true, started });
     });
 
     player.once("error", (error) => {
       console.error("[tts] player error:", error);
-      finish({ ok: false, error: `เล่นเสียงไม่สำเร็จ: ${error.message}` });
+      finish({ ok: false, started, error: `เล่นเสียงไม่สำเร็จ: ${error.message}` });
     });
 
     connection.once("error", (error) => {
       console.error("[tts] voice connection error:", error);
-      finish({ ok: false, error: `การเชื่อมต่อเสียงมีข้อผิดพลาด: ${error.message}` });
+      finish({ ok: false, started, error: `การเชื่อมต่อเสียงมีข้อผิดพลาด: ${error.message}` });
     });
 
     try {
@@ -279,7 +291,11 @@ async function executePlayTts(
 
       resource.playStream.once("error", (error) => {
         console.error("[tts] resource stream error:", error);
-        finish({ ok: false, error: `ถอดรหัสเสียงไม่สำเร็จ: ${error.message}` });
+        finish({ ok: false, started, error: `ถอดรหัสเสียงไม่สำเร็จ: ${error.message}` });
+      });
+
+      resource.playStream.once("end", () => {
+        console.log(`[tts] resource stream ended (guild ${guildId}, started=${started})`);
       });
 
       player.play(resource);
@@ -291,7 +307,7 @@ async function executePlayTts(
       });
     } catch (err) {
       console.error("[tts] createAudioResource error:", err);
-      finish({ ok: false, error: `ไม่สามารถเริ่มเล่นเสียงได้: ${(err as Error).message}` });
+      finish({ ok: false, started, error: `ไม่สามารถเริ่มเล่นเสียงได้: ${(err as Error).message}` });
     }
   });
 }

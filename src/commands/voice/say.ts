@@ -114,6 +114,12 @@ export default {
       return;
     }
 
+    if (!result.started) {
+      console.warn(`TTS produced no audible playback for guild ${interaction.guild!.id} (${result.audioBytes ?? 0} bytes)`);
+      await interaction.followUp({ content: "เชื่อมต่อแล้วแต่ไม่มีเสียงออกมา กรุณาลองใหม่อีกครั้ง", flags: MessageFlags.Ephemeral });
+      return;
+    }
+
     if (!notified) {
       await interaction.followUp({ content: `กำลังพูด: ${text}`, flags: MessageFlags.Ephemeral });
     }

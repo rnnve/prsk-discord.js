@@ -4,6 +4,7 @@ WORKDIR /app
 
 COPY package.json bun.lock* ./
 RUN apt-get update && apt-get install -y ffmpeg git && rm -rf /var/lib/apt/lists/*
+RUN ffmpeg -encoders 2>/dev/null | grep -q opus || (echo "ffmpeg opus encoder missing" && exit 1)
 RUN bun install --frozen-lockfile
 
 COPY tsconfig.json tsconfig.bot.json next.config.mjs ./

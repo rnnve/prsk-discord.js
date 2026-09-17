@@ -95,6 +95,12 @@ client.on(Events.ClientReady, async (readyClient) => {
   for (const [, cmd] of client.commands) {
     console.log(`  /${cmd.data.name} — ${cmd.data.description}`);
   }
+  try {
+    const { generateDependencyReport } = await import("@discordjs/voice");
+    console.log(generateDependencyReport());
+  } catch {
+    // ignore
+  }
   console.log("Bot fully ready");
 
   readyClient.user.setPresence({
