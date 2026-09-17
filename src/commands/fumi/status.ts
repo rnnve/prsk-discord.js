@@ -4,7 +4,6 @@ import { startTime } from "../../index.js";
 
 const PRIMARY = "#5865F2";
 const MACHINE_IP = process.env.MACHINE_IP ?? "127.0.0.1";
-const BOT_HEALTHCHECK_PORT = 8899;
 const API_PORT = 6770;
 const STATUS_OK = "\u{1F7E2}";
 const STATUS_FAIL = "\u{1F534}";
@@ -51,22 +50,14 @@ export default {
     const botLatency = interaction.client.ws.ping;
     const discordOk = interaction.client.isReady();
 
-    const botUrl = `http://${MACHINE_IP}:${BOT_HEALTHCHECK_PORT}`;
     const apiUrl = `http://${MACHINE_IP}:${API_PORT}`;
 
-    const [botCheck, apiCheck] = await Promise.all([checkUrl(botUrl), checkUrl(apiUrl)]);
+    const apiCheck = await checkUrl(apiUrl);
 
-    const botIcon = botCheck.ok ? STATUS_OK : STATUS_FAIL;
     const apiIcon = apiCheck.ok ? STATUS_OK : STATUS_FAIL;
     const dcIcon = discordOk ? STATUS_OK : STATUS_FAIL;
 
     const embed = EmbedBuilder.hex(PRIMARY, "System Status");
-
-    embed.addInlineField(
-      "Bot Healthcheck",
-      `${botIcon} \`UP\`\nLatency: \`${botCheck.latency}ms\``,
-      false
-    );
 
     embed.addInlineField(
       "API",

@@ -3,6 +3,8 @@ import {
   type Client,
   type Interaction,
   type AutocompleteInteraction,
+  type InteractionReplyOptions,
+  MessageFlags,
 } from "discord.js";
 
 export default {
@@ -32,9 +34,9 @@ export default {
       await cmd.execute(interaction);
     } catch (error) {
       console.error(`Error executing /${interaction.commandName}:`, error);
-      const reply = {
+      const reply: InteractionReplyOptions = {
         content: "เกิดข้อผิดพลาดในการทำงานของคำสั่งนี้",
-        ephemeral: true,
+        flags: MessageFlags.Ephemeral,
       };
       if (interaction.replied || interaction.deferred) {
         await interaction.followUp(reply).catch(() => {});

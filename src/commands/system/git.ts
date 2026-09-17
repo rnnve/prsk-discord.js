@@ -1,6 +1,7 @@
 import {
   SlashCommandBuilder,
   type ChatInputCommandInteraction,
+  MessageFlags,
 } from "discord.js";
 import * as child_process from "node:child_process";
 import { EmbedBuilder } from "../../utils/embed-builder.js";
@@ -174,7 +175,7 @@ export default {
     const all = interaction.options.getBoolean("all") ?? false;
     const ephemeral = interaction.options.getBoolean("ephemeral") ?? false;
 
-    await interaction.deferReply({ ephemeral });
+    await interaction.deferReply({ flags: ephemeral ? MessageFlags.Ephemeral : undefined });
 
     const embed = EmbedBuilder.hex("#F05032", "📋 Git Log");
     embed.setFooter({ text: `Requested by ${interaction.user.displayName}` });
@@ -194,6 +195,6 @@ export default {
       embed.addInlineField(`🔗 ${label}`, `\`\`\`${log}\`\`\``, false);
     }
 
-    await interaction.followUp({ embeds: [embed.toJSON()], ephemeral });
+    await interaction.followUp({ embeds: [embed.toJSON()], flags: ephemeral ? MessageFlags.Ephemeral : undefined });
   },
 };

@@ -7,25 +7,27 @@
     "start": "bun dist/index.js",
     "dev:bot": "bun run src/index.ts",
     "dev:status": "next dev --port 3995",
+    "predev": "bun run deploy || true",
     "dev": "concurrently \"npm run dev:bot\" \"npm run dev:status\"",
     "deploy": "bun run src/deploy-commands.ts",
     "typecheck": "tsc -p tsconfig.bot.json --noEmit"
   },
   "dependencies": {
     "@discordjs/voice": "^0.17.0",
-    "discord.js": "^14.16.3",
-    "dotenv": "^16.4.7",
-    "next": "^15.3.4",
+    "discord.js": "^14.27.0",
+    "dotenv": "^16.6.1",
+    "next": "^15.5.25",
     "node-edge-tts": "^1.2.10",
-    "react": "^19.1.0",
-    "react-dom": "^19.1.0",
-    "sodium-native": "^4.1.2"
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0",
+    "sodium-native": "^4.3.3",
+    "tweetnacl": "^1.0.3"
   },
   "devDependencies": {
-    "@types/node": "^22.10.0",
-    "@types/react": "^19.1.0",
-    "concurrently": "^9.1.2",
-    "tsx": "^4.19.0",
-    "typescript": "^5.7.0"
+    "@types/node": "^22.20.2",
+    "@types/react": "^19.3.0",
+    "concurrently": "^9.2.4",
+    "tsx": "^4.23.13",
+    "typescript": "^5.9.3"
   }
 }

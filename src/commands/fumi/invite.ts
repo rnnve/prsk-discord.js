@@ -1,4 +1,4 @@
-import { SlashCommandBuilder, type ChatInputCommandInteraction } from "discord.js";
+import { SlashCommandBuilder, type ChatInputCommandInteraction, MessageFlags } from "discord.js";
 
 export default {
   data: new SlashCommandBuilder()
@@ -13,14 +13,14 @@ export default {
     if (!link) {
       await interaction.reply({
         content: "ไม่พบลิงก์เชิญบอทในระบบ โปรดแจ้งผู้ดูแล",
-        ephemeral: true,
+        flags: MessageFlags.Ephemeral,
       });
       return;
     }
 
     await interaction.reply({
       content: `ลิงก์เชิญบอท: ${link}`,
-      ephemeral: true,
+      flags: MessageFlags.Ephemeral,
     });
   },
 };
