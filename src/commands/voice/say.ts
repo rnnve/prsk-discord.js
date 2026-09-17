@@ -1,101 +1,61 @@
 import {
   SlashCommandBuilder,
   type ChatInputCommandInteraction,
+  MessageFlags,
 } from "discord.js";
 import {
   joinVoiceChannel,
   getVoiceConnection,
-  createAudioPlayer,
-  createAudioResource,
-  AudioPlayerStatus,
+  VoiceConnectionStatus,
+  entersState,
 } from "@discordjs/voice";
-import * as fs from "node:fs";
-import * as os from "node:os";
-import * as path from "node:path";
-import { EdgeTTS } from "node-edge-tts";
-import { getGuild } from "../../utils/guild-config.js";
-
-const DEFAULT_VOICE = "th-TH-NiwatNeural";
-const TTS_RETRIES = 3;
+import { playTts } from "../../utils/tts.js";
 
 async function ensureVoice(interaction: ChatInputCommandInteraction): Promise<boolean> {
   if (!interaction.guild) return false;
   const member = interaction.member;
   if (!member || !("voice" in member) || !member.voice.channel) {
-    await interaction.reply({
+    await interaction.followUp({
       content: "คุณต้องอยู่ในห้องเสียงก่อนใช้คำสั่งนี้",
-      ephemeral: true,
+      flags: MessageFlags.Ephemeral,
     });
     return false;
   }
 
   const target = member.voice.channel;
-  const connection = getVoiceConnection(interaction.guild.id);
+  let connection = getVoiceConnection(interaction.guild.id);
 
-  if (connection) {
+  if (connection && connection.state.status !== VoiceConnectionStatus.Destroyed) {
     const currentChannel = connection.joinConfig.channelId;
     if (currentChannel !== target.id) {
       connection.destroy();
-    } else {
-      return true;
+      connection = undefined;
     }
   }
 
-  joinVoiceChannel({
-    channelId: target.id,
-    guildId: interaction.guild.id,
-    adapterCreator: interaction.guild.voiceAdapterCreator as any,
-  });
+  if (!connection || connection.state.status === VoiceConnectionStatus.Destroyed) {
+    connection = joinVoiceChannel({
+      channelId: target.id,
+      guildId: interaction.guild.id,
+      adapterCreator: interaction.guild.voiceAdapterCreator as any,
+      selfDeaf: false,
+    });
+  }
+
+  if (connection.state.status !== VoiceConnectionStatus.Ready) {
+    try {
+      await entersState(connection, VoiceConnectionStatus.Ready, 15_000);
+    } catch (e) {
+      console.error("[say] Failed to connect to voice channel:", e);
+      await interaction.followUp({
+        content: "ไม่สามารถเชื่อมต่อห้องเสียงได้ กรุณาลองใหม่อีกครั้ง",
+        flags: MessageFlags.Ephemeral,
+      });
+      return false;
+    }
+  }
 
   return true;
-}
-
-async function playTts(text: string, voice: string, guildId: string): Promise<void> {
-  const connection = getVoiceConnection(guildId);
-  if (!connection) return;
-
-  let tempPath: string | null = null;
-  try {
-    tempPath = path.join(os.tmpdir(), `tts-${Date.now()}-${Math.random().toString(36).slice(2)}.mp3`);
-
-    let lastError: Error | null = null;
-    for (let attempt = 0; attempt < TTS_RETRIES; attempt++) {
-      try {
-        const tts = new EdgeTTS({
-          voice,
-          outputFormat: "audio-24khz-96kbitrate-mono-mp3",
-        });
-        await tts.ttsPromise(text, tempPath);
-        lastError = null;
-        break;
-      } catch (e) {
-        lastError = e as Error;
-        console.warn(`TTS no audio (attempt ${attempt + 1}/${TTS_RETRIES}):`, e);
-        if (attempt < TTS_RETRIES - 1) {
-          await new Promise((r) => setTimeout(r, 2 ** attempt * 1000));
-        }
-      }
-    }
-
-    if (lastError) throw lastError;
-
-    const resource = createAudioResource(tempPath);
-    const player = createAudioPlayer();
-    connection.subscribe(player);
-    player.play(resource);
-
-    await new Promise<void>((resolve) => {
-      player.on(AudioPlayerStatus.Idle, () => resolve());
-      player.on("error", () => resolve());
-      setTimeout(resolve, 30000);
-    });
-  } catch (e) {
-    console.error("TTS error:", e);
-  } finally {
-    if (tempPath) {
-      try { fs.unlinkSync(tempPath); } catch { /* ignore */ }
-    }
-  }
 }
 
 export default {
@@ -109,24 +69,48 @@ export default {
       opt.setName("text").setDescription("ข้อความที่จะให้บอทพูด").setRequired(true)
     )
     .addStringOption((opt) =>
-      opt.setName("voice").setDescription("เสียงที่จะใช้ (ดูรายชื่อได้ที่ /voices)").setRequired(false)
+      opt
+        .setName("voice")
+        .setDescription("เสียงที่จะใช้ (ไม่ใส่ = เลือกอัตโนมัติตามภาษา)")
+        .setRequired(false)
+        .addChoices(
+          { name: "ไทย (ชายนิวัฒน์ - Niwat)", value: "th-TH-NiwatNeural" },
+          { name: "ไทย (หญิงเปรมวดี - Premwadee)", value: "th-TH-PremwadeeNeural" },
+          { name: "English (Male - Andrew)", value: "en-US-AndrewNeural" },
+          { name: "English (Female - Ava)", value: "en-US-AvaNeural" },
+          { name: "日本語 (男性 - Keita)", value: "ja-JP-KeitaNeural" },
+          { name: "日本語 (女性 - Nanami)", value: "ja-JP-NanamiNeural" }
+        )
     ),
 
   execute: async (interaction: ChatInputCommandInteraction) => {
+    await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+
     if (!(await ensureVoice(interaction))) return;
 
     const text = interaction.options.getString("text", true);
-    const voice = interaction.options.getString("voice") || getGuild(interaction.guild!.id).default_voice || DEFAULT_VOICE;
+    const voice = interaction.options.getString("voice");
 
-    await interaction.deferReply({ ephemeral: true });
+    let notified = false;
+    const result = await playTts(text, voice, interaction.guild!.id, {
+      onStart: async () => {
+        if (!notified) {
+          notified = true;
+          await interaction.followUp({ content: `กำลังพูด: ${text}`, flags: MessageFlags.Ephemeral });
+        }
+      },
+    });
 
-    const connection = getVoiceConnection(interaction.guild!.id);
-    if (!connection) {
-      await interaction.followUp({ content: "บอทตัดการเชื่อมต่อจากห้องเสียง", ephemeral: true });
+    if (!result.ok) {
+      console.error(`TTS failed for guild ${interaction.guild!.id}:`, result.error);
+      if (!notified) {
+        await interaction.followUp({ content: `ไม่สามารถพูดได้: ${result.error}`, flags: MessageFlags.Ephemeral });
+      }
       return;
     }
 
-    await playTts(text, voice, interaction.guild!.id);
-    await interaction.followUp({ content: `กำลังพูด: ${text}`, ephemeral: true });
+    if (!notified) {
+      await interaction.followUp({ content: `กำลังพูด: ${text}`, flags: MessageFlags.Ephemeral });
+    }
   },
 };

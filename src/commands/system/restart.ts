@@ -15,7 +15,7 @@ export default {
     if (interaction.user.id !== ownerId) {
       const embed = EmbedBuilder.error("Restart", "คุณไม่มีสิทธิ์ใช้คำสั่งนี้");
       embed.setFooter({ text: `Requested by ${interaction.user.displayName}` });
-      await interaction.reply({ embeds: [embed.toJSON()], ephemeral: false });
+      await interaction.reply({ embeds: [embed.toJSON()] });
       return;
     }
 

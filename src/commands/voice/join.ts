@@ -3,8 +3,9 @@ import {
   type ChatInputCommandInteraction,
   ChannelType,
   type VoiceChannel,
+  MessageFlags,
 } from "discord.js";
-import { joinVoiceChannel } from "@discordjs/voice";
+import { joinVoiceChannel, entersState, VoiceConnectionStatus } from "@discordjs/voice";
 import { getGuild, setGuild } from "../../utils/guild-config.js";
 
 export default {
@@ -30,7 +31,7 @@ export default {
 
   execute: async (interaction: ChatInputCommandInteraction) => {
     if (!interaction.guild) {
-      await interaction.reply({ content: "คำสั่งนี้ใช้ได้เฉพาะในเซิร์ฟเวอร์", ephemeral: true });
+      await interaction.reply({ content: "คำสั่งนี้ใช้ได้เฉพาะในเซิร์ฟเวอร์", flags: MessageFlags.Ephemeral });
       return;
     }
 
@@ -42,34 +43,45 @@ export default {
     if (!target || target.type !== ChannelType.GuildVoice) {
       await interaction.reply({
         content: "คุณต้องอยู่ในห้องเสียง หรือระบุห้องเสียง",
-        ephemeral: true,
+        flags: MessageFlags.Ephemeral,
       });
       return;
     }
 
-    await interaction.deferReply({ ephemeral: true });
+    await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
     const vc = interaction.guild.members.me?.voice?.channel;
     let msg: string;
 
+    let conn;
     if (vc) {
       if (vc.id !== target.id) {
-        joinVoiceChannel({
+        conn = joinVoiceChannel({
           channelId: target.id,
           guildId: interaction.guild.id,
           adapterCreator: interaction.guild.voiceAdapterCreator as any,
+          selfDeaf: false,
         });
         msg = `ย้ายไป ${target.toString()} แล้ว`;
       } else {
         msg = `อยู่ใน ${target.toString()} อยู่แล้ว`;
       }
     } else {
-      joinVoiceChannel({
+      conn = joinVoiceChannel({
         channelId: target.id,
         guildId: interaction.guild.id,
         adapterCreator: interaction.guild.voiceAdapterCreator as any,
+        selfDeaf: false,
       });
       msg = `เชื่อมต่อ ${target.toString()} แล้ว`;
+    }
+
+    if (conn) {
+      try {
+        await entersState(conn, VoiceConnectionStatus.Ready, 15_000);
+      } catch (e) {
+        console.error("[join] Failed to connect to voice channel:", e);
+      }
     }
 
     const autoRead = interaction.options.getBoolean("auto_read") ?? true;
@@ -84,6 +96,6 @@ export default {
       msg += " และปิดอ่านข้อความอัตโนมัติ";
     }
 
-    await interaction.followUp({ content: msg, ephemeral: true });
+    await interaction.followUp({ content: msg, flags: MessageFlags.Ephemeral });
   },
 };

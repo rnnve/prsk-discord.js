@@ -2,6 +2,7 @@ import {
   SlashCommandBuilder,
   type ChatInputCommandInteraction,
   type AutocompleteInteraction,
+  MessageFlags,
 } from "discord.js";
 import * as fs from "node:fs";
 import * as path from "node:path";
@@ -70,13 +71,13 @@ export default {
     ),
 
   execute: async (interaction: ChatInputCommandInteraction) => {
-    await interaction.deferReply({ ephemeral: interaction.options.getBoolean("ephemeral") ?? false });
+    await interaction.deferReply({ flags: interaction.options.getBoolean("ephemeral") ? MessageFlags.Ephemeral : undefined });
 
     const changelogs = parseChangelogs();
     if (!changelogs.length) {
       const embed = EmbedBuilder.warning("Changelog", "ยังไม่มี changelog ในระบบ");
       embed.setFooter({ text: `Requested by ${interaction.user.displayName}` });
-      await interaction.followUp({ embeds: [embed.toJSON()], ephemeral: true });
+      await interaction.followUp({ embeds: [embed.toJSON()], flags: MessageFlags.Ephemeral });
       return;
     }
 
@@ -93,7 +94,7 @@ export default {
       if (!target) {
         const embed = EmbedBuilder.error("Changelog", `ไม่พบ changelog สำหรับ \`${select}\``);
         embed.setFooter({ text: `Requested by ${interaction.user.displayName}` });
-        await interaction.followUp({ embeds: [embed.toJSON()], ephemeral: true });
+        await interaction.followUp({ embeds: [embed.toJSON()], flags: MessageFlags.Ephemeral });
         return;
       }
     } else {
@@ -106,7 +107,7 @@ export default {
     const embed = EmbedBuilder.hex(PRIMARY, `📋 Changelog — ${displayDate}`, truncate(content));
     embed.setFooter({ text: `ไฟล์: ${path.basename(target.filePath)} • Requested by ${interaction.user.displayName}` });
 
-    await interaction.followUp({ embeds: [embed.toJSON()], ephemeral: interaction.options.getBoolean("ephemeral") ?? false });
+    await interaction.followUp({ embeds: [embed.toJSON()], flags: interaction.options.getBoolean("ephemeral") ? MessageFlags.Ephemeral : undefined });
   },
 
   autocomplete: async (interaction: AutocompleteInteraction) => {

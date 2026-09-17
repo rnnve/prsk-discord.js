@@ -1,6 +1,6 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { type ChatInputCommandInteraction } from "discord.js";
+import { type ChatInputCommandInteraction, MessageFlags } from "discord.js";
 
 const ALLOWLIST_PATH = path.resolve("allowlist.txt");
 
@@ -46,11 +46,11 @@ export function addToAllowlist(guildId: string, userId: string, username: string
 
 export async function adminCheck(interaction: ChatInputCommandInteraction): Promise<boolean> {
   if (!interaction.guildId) {
-    await interaction.reply({ content: "This command can only be used in a server.", ephemeral: true });
+    await interaction.reply({ content: "This command can only be used in a server.", flags: MessageFlags.Ephemeral });
     return false;
   }
   if (!isUserAdmin(interaction.user.id, interaction.guildId)) {
-    await interaction.reply({ content: "You do not have permission to use this command.", ephemeral: true });
+    await interaction.reply({ content: "You do not have permission to use this command.", flags: MessageFlags.Ephemeral });
     return false;
   }
   return true;

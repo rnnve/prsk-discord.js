@@ -8,15 +8,13 @@ export interface Command {
 }
 
 export interface GuildConfig {
-  default_voice: string;
   auto_read_channel_id: string | null;
   auto_read_enabled: boolean;
   autojoin_enabled: boolean;
 }
 
 export const DEFAULT_GUILD_CONFIG: GuildConfig = {
-  default_voice: "th-TH-NiwatNeural",
   auto_read_channel_id: null,
   auto_read_enabled: false,
-  autojoin_enabled: true,
+  autojoin_enabled: false,
 };
